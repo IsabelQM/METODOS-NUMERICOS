@@ -1,4 +1,4 @@
-% 1. DEFINICIÓN DE DATOS
+% 1. DEFINICION DE DATOS
 datos = [
  100, 152.3; 120, 149.1; 145, 146.8; 170, 144.9; 200, 142.0;
  235, 139.5; 270, 137.9; 310, 136.1; 355, 134.8; 405, 133.6;
@@ -13,18 +13,14 @@ y = datos(:,2);
 N = length(x); % Número de puntos (30)
 grado = N - 1; % Grado del polinomio (29)
 
-% Vector de x denso para evaluar y graficar las curvas continuas
 x_eval = linspace(min(x), max(x), 1000);
 
-%% ========================================================================
+
 % MÉTODO 1: MÉTODO MATRICIAL (Matriz de Vandermonde)
-% Creamos la matriz de Vandermonde : V*c = y
 V = zeros(N, N);
 for i = 1:N
     V(:, i) = x.^(N - i); 
 end
-
-% Resolvemos el sistema para hallar los coeficientes 'c'
 
 coef_matricial = V \ y;
 
@@ -32,11 +28,9 @@ coef_matricial = V \ y;
 y_matricial = polyval(coef_matricial, x_eval);
 
 
-%% ========================================================================
-% MÉTODO 2: INTERPOLACIÓN DE LAGRANGE
+% METODO 2: INTERPOLACION DE LAGRANGE
 y_lagrange = zeros(size(x_eval));
 
-% Implementación algorítmica de los polinomios base de Lagrange
 for k = 1:length(x_eval)
     sumatoria = 0;
     for i = 1:N
@@ -53,8 +47,7 @@ for k = 1:length(x_eval)
 end
 
 
-%% ========================================================================
-% VISUALIZACIÓN Y GRÁFICA
+% VISUALIZACION Y GRAFICA
 figure('Name', 'Interpolación Polinómica de Grado 29', 'NumberTitle', 'off');
 plot(x, y, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 8, 'DisplayName', 'Datos Originales');
 hold on;
