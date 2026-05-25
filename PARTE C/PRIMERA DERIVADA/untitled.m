@@ -1,0 +1,101 @@
+clc; clear; close all;
+
+%% DEFINICIÓN DE LOS DATOS ORIGINALES
+datos = [
+ 100, 152.3; 120, 149.1; 145, 146.8; 170, 144.9; 200, 142.0;
+ 235, 139.5; 270, 137.9; 310, 136.1; 355, 134.8; 405, 133.6;
+ 460, 132.7; 520, 131.9; 585, 131.4; 655, 131.1; 730, 130.9;
+ 810, 131.0; 895, 131.3; 985, 131.9; 1080, 132.7; 1180, 133.8;
+ 1290, 135.2; 1410, 136.9; 1540, 138.9; 1680, 141.1; 1830, 143.5;
+ 1990, 146.1; 2160, 149.0; 2340, 152.2; 2530, 155.6; 2730, 159.2
+];
+
+f = datos(:,1);
+Z = datos(:,2);
+n = length(f);
+
+%% 2.CONSTRUCCIÓN DEL SPLINE CÚBICO NATURAL
+
+h = diff(f);
+a = Z;
+A = zeros(n, n);
+B = zeros(n, 1);
+
+A(1, 1) = 1; A(n, n) = 1; 
+for i = 2:n-1
+    A(i, i-1) = h(i-1);
+    A(i, i)   = 2 * (h(i-1) + h(i));
+    A(i, i+1) = h(i);
+    B(i)      = 3 * ((a(i+1) - a(i)) / h(i) - (a(i) - a(i-1)) / h(i-1));
+end
+c = A \ B; 
+
+b = zeros(n-1, 1); d = zeros(n-1, 1);
+for i = 1:n-1
+    b(i) = (a(i+1) - a(i))/h(i) - h(i)*(2*c(i) + c(i+1))/3;
+    d(i) = (c(i+1) - c(i))/(3*h(i));
+end
+
+% Coeficientes del Spline Original: [d, c, b, a]
+coef_spline = [d, c(1:end-1), b, a(1:end-1)];
+spline_pp = mkpp(f, coef_spline);
+
+%% 3. DERIVACIÓN ANALÍTICA DEL SPLINE
+
+% Derivando analíticamente: S'_i = 3*d*(f-f_i)^2 + 2*c*(f-f_i) + b
+coef_derivada = [3*d, 2*c(1:end-1), b];
+derivada_pp = mkpp(f, coef_derivada);
+
+% Calcular la derivada exactamente en los 30 puntos de datos originales
+derivada_puntos = ppval(derivada_pp, f);
+
+%% BÚSQUEDA DEL MÍNIMO CON ALTA PRECISIÓN (Malla Fina)
+
+malla_frecuencias = linspace(min(f), max(f), 100000);
+derivada_fina = ppval(derivada_pp, malla_frecuencias);
+
+% Localizar dónde la derivada cruza por cero cambiando de signo (- a +)
+idx_cambio = find(derivada_fina(1:end-1) < 0 & derivada_fina(2:end) > 0, 1);
+
+f_minimo = malla_frecuencias(idx_cambio);
+Z_minimo = ppval(spline_pp, f_minimo);
+derivada_en_minimo = ppval(derivada_pp, f_minimo);
+
+%% IMPRESIÓN DE RESULTADOS Y TABLA DE DERIVADAS
+
+fprintf('=========================================================\n');
+fprintf(' UBICACIÓN PRECISA DEL EXTREMO MÍNIMO\n');
+fprintf('=========================================================\n');
+fprintf('Frecuencia del mínimo (f_min):    %.3f Hz\n', f_minimo);
+fprintf('Impedancia en el mínimo |Z|:       %.4f\n', Z_minimo);
+fprintf('Valor de la derivada en ese punto: %.3e (Cercano a 0)\n', derivada_en_minimo);
+fprintf('=========================================================\n\n');
+
+fprintf('TABLA DE DERIVADAS ANALÍTICAS EN CADA NODO:\n');
+fprintf('%-12s %-15s %-15s\n', 'Nodo (i)', 'Frecuencia (Hz)', 'd|Z|/df (Analítica)');
+for i = 1:n
+    fprintf('%-12d %-15.1f %-15.5f\n', i, f(i), derivada_puntos(i));
+end
+
+%% VISUALIZACIÓN GRÁFICA
+figure('Name', 'Análisis de Derivada Primera', 'NumberTitle', 'off', 'Position', [100, 100, 900, 600]);
+
+% Subplot 1: Spline de Impedancia Original
+subplot(2, 1, 1);
+plot(f, Z, 'ro', 'MarkerFaceColor', 'r', 'DisplayName', 'Datos'); hold on;
+plot(malla_frecuencias, ppval(spline_pp, malla_frecuencias), 'b-', 'LineWidth', 1.5, 'DisplayName', 'Spline |Z|');
+plot(f_minimo, Z_minimo, 'ks', 'MarkerSize', 10, 'MarkerFaceColor', 'y', 'DisplayName', 'Mínimo Local');
+title('Espectro de Impedancia Bioeléctrica |Z|');
+xlabel('Frecuencia f (Hz)'); ylabel('|Z|');
+grid on; legend('Location', 'best');
+
+% Subplot 2: Gráfica de la Derivada Primera
+subplot(2, 1, 2);
+plot(malla_frecuencias, derivada_fina, 'k-', 'LineWidth', 2, 'DisplayName', 'd|Z|/df Analítica'); hold on;
+plot(f, derivada_puntos, 'mo', 'MarkerFaceColor', 'm', 'DisplayName', 'Derivada en Nodos');
+plot(f_minimo, 0, 'ks', 'MarkerSize', 10, 'MarkerFaceColor', 'y', 'DisplayName', 'Cruce por Cero (Raíz)');
+line([min(f) max(f)], [0 0], 'Color', 'r', 'LineStyle', '--', 'HandleVisibility', 'off'); % Línea cero
+title('Derivada Primera Analítica d|Z|/df');
+xlabel('Frecuencia f (Hz)'); ylabel('d|Z|/df');
+grid on; legend('Location', 'best');
+xlim([min(f), max(f)]);
